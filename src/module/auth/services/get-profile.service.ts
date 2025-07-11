@@ -1,23 +1,22 @@
 import AppError from "@/errors/AppError";
 import UserRepository from "@/module/user/repository/user.repository";
 
-export default async function getProfile(
-  userRepository: UserRepository,
-  id: string
-) {
-  if (!id) {
-    throw new AppError(401, "Unauthorized");
-  }
+export function getProfile(userRepository: UserRepository) {
+  return async function (id: string) {
+    if (!id) {
+      throw new AppError(401, "Unauthorized");
+    }
 
-  const user = await userRepository.findById(id);
+    const user = await userRepository.findById(id);
 
-  if (!user || !id) {
-    throw new AppError(400, "Usuário não encontrado");
-  }
+    if (!user || !id) {
+      throw new AppError(400, "Usuário não encontrado");
+    }
 
-  const { passwordHash, ...data } = user;
+    const { passwordHash, ...data } = user;
 
-  return {
-    user: data,
+    return {
+      user: data,
+    };
   };
 }

@@ -1,34 +1,30 @@
-import { describe, it, beforeEach, expect } from "vitest";
+import { describe, it, beforeEach, expect, vi } from "vitest";
 
-import { LoginDTO } from "./login.service";
-import {
-  makeLoginService,
-  makeRegisterService,
-} from "../factories/auth-services.factory";
+import { login, LoginDTO } from "./login.service";
 import User from "@/module/user/user.model";
-import makeInMemoryUserRepository, {
-  InMemoryUserRepository,
-} from "@/module/user/repository/in-memory-user.repository";
 
 import AppError from "@/errors/AppError";
+import { makeService } from "@/utils";
+import UserRepository from "@/module/user/repository/user.repository";
+import { hash } from "bcrypt";
 
-let userRepository: InMemoryUserRepository;
 let sut: (data: LoginDTO) => Promise<{ user: User }>;
+
+const mockRepo = {
+  findByEmail: vi.fn(),
+};
 
 describe("Login service", () => {
   beforeEach(async () => {
-    userRepository = makeInMemoryUserRepository();
-    const registerUser = makeRegisterService(userRepository);
-
-    sut = makeLoginService(userRepository);
-    await registerUser({
-      name: "John Doe",
-      email: "johndoe@hotmail.com",
-      password: "123456789",
-    });
+    sut = makeService(mockRepo as unknown as UserRepository, login);
   });
 
   it("should be able to login", async () => {
+    mockRepo.findByEmail.mockResolvedValue({
+      email: "johndoe@hotmail.com",
+      passwordHash: await hash("123456789", 10),
+    });
+
     const { user } = await sut({
       email: "johndoe@hotmail.com",
       password: "123456789",
@@ -40,10 +36,13 @@ describe("Login service", () => {
   });
 
   it("should throw if user does not exists or if password does not match", async () => {
-    expect(async () =>
+    mockRepo.findByEmail.mockResolvedValue(null);
+
+    await expect(
       sut({ email: "johndoe@hotmail.com", password: "wrong-password" })
     ).rejects.toBeInstanceOf(AppError);
-    expect(async () =>
+
+    await expect(
       sut({ email: "wrong-user@hotmail.com", password: "wrong-password" })
     ).rejects.toBeInstanceOf(AppError);
   });

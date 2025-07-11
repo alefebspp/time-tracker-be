@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "vitest",
-    "build": "tsup src --out-dir build",
+    "test": "vitest run",
+    "build": "tsup src --out-dir build --legacy-output",
     "start": "node build/server.js",
     "start:dev": "tsx watch src/server.ts"
   },
@@ -36,6 +37,7 @@
     "eslint": "^9.30.1",
     "prisma": "^6.11.1",
     "typescript": "^5.8.3",
+    "vite": "^7.0.4",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4"
   }
