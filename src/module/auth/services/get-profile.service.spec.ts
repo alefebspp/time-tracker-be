@@ -1,43 +1,44 @@
-import makeInMemoryUserRepository from "@/module/user/repository/in-memory-user.repository";
-import User from "@/module/user/user.model";
-import { describe, it, beforeEach, expect } from "vitest";
-import {
-  makeGetProfileService,
-  makeRegisterService,
-} from "../factories/auth-services.factory";
-import AppError from "@/errors/AppError";
+import { describe, it, beforeEach, expect, vi } from "vitest";
 
-let sut: {
-  getProfile: (id: string) => Promise<{ user: Omit<User, "passwordHash"> }>;
-  users: User[];
+import User from "@/module/user/user.model";
+import AppError from "@/errors/AppError";
+import { makeService } from "@/utils";
+import { getProfile } from "./get-profile.service";
+import UserRepository from "@/module/user/repository/user.repository";
+
+let sut: (id: string) => Promise<{ user: Omit<User, "passwordHash"> }>;
+
+const mockRepo = {
+  findById: vi.fn(),
 };
 
 describe("Get profile service", () => {
   beforeEach(async () => {
-    const userRepository = makeInMemoryUserRepository();
-    const registrationService = makeRegisterService(userRepository);
-    await registrationService({
-      email: "johndoe@hotmail.com",
-      name: "John Doe",
-      password: "123",
-    });
-    sut = {
-      getProfile: makeGetProfileService(userRepository),
-      users: userRepository.users,
-    };
+    sut = makeService(mockRepo as unknown as UserRepository, getProfile);
   });
 
   it("should throw error if user does not exists", async () => {
-    expect(async () => await sut.getProfile("wrong-id")).rejects.toBeInstanceOf(
-      AppError
-    );
+    mockRepo.findById.mockResolvedValue(null);
+
+    await expect(sut("wrong-id")).rejects.toBeInstanceOf(AppError);
   });
 
-  it("should return a user", async () => {
-    const { getProfile, users } = sut;
+  it("should return a user without passwordHash", async () => {
+    mockRepo.findById.mockResolvedValue({
+      id: "valid-id",
+      name: "John Doe",
+      email: "john@example.com",
+      passwordHash: "hashed",
+    });
 
-    const user = await getProfile(users[0].id);
+    const user = await sut("valid-id");
 
-    expect(user).toBeTruthy();
+    expect(user).toEqual({
+      user: {
+        id: "valid-id",
+        name: "John Doe",
+        email: "john@example.com",
+      },
+    });
   });
 });

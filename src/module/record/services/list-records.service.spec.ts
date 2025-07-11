@@ -8,12 +8,13 @@ import User from "@/module/user/user.model";
 import makeInMemoryUserRepository, {
   InMemoryUserRepository,
 } from "@/module/user/repository/in-memory-user.repository";
-import { makeRegisterService } from "@/module/auth/factories/auth-services.factory";
 import makeInMemoryRecordRepository from "../repository/in-memory-record.repository";
 import {
   makeCreateRecordService,
   makeListRecordsService,
 } from "../factories/record-services.factory";
+import { makeService } from "@/utils";
+import { registerUser } from "@/module/auth/services/register.service";
 
 let recordRepository: RecordRepository;
 let userRepository: InMemoryUserRepository;
@@ -29,7 +30,7 @@ describe("List all records service", () => {
     userRepository = makeInMemoryUserRepository();
     recordRepository = makeInMemoryRecordRepository();
     const createRecordService = makeCreateRecordService(recordRepository);
-    const registerService = makeRegisterService(userRepository);
+    const registerService = makeService(userRepository, registerUser);
     const listRecordsService = makeListRecordsService(recordRepository);
 
     await registerService({
