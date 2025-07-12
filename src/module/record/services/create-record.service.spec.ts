@@ -5,11 +5,13 @@ import RecordRepository, {
 } from "../repository/record.repository";
 import User from "@/module/user/user.model";
 import makeInMemoryRecordRepository from "../repository/in-memory-record.repository";
-import { makeCreateRecordService } from "../factories/record-services.factory";
 import makeInMemoryUserRepository from "@/module/user/repository/in-memory-user.repository";
 import AppError from "@/errors/AppError";
+import { makeService } from "@/utils";
+import { createRecord } from "./create-record.service";
 
 let recordRepository: RecordRepository;
+
 let sut: {
   createRecordService: (data: CreateRecordDTO) => Promise<void>;
   recordRepository: RecordRepository;
@@ -25,7 +27,8 @@ describe("Create record repository", () => {
       name: "John Doe",
     });
     recordRepository = makeInMemoryRecordRepository();
-    const createRecordService = makeCreateRecordService(recordRepository);
+
+    const createRecordService = makeService(recordRepository, createRecord);
 
     sut = {
       recordRepository,

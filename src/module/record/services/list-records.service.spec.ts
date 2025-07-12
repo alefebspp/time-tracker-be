@@ -9,12 +9,11 @@ import makeInMemoryUserRepository, {
   InMemoryUserRepository,
 } from "@/module/user/repository/in-memory-user.repository";
 import makeInMemoryRecordRepository from "../repository/in-memory-record.repository";
-import {
-  makeCreateRecordService,
-  makeListRecordsService,
-} from "../factories/record-services.factory";
+
 import { makeService } from "@/utils";
 import { registerUser } from "@/module/auth/services/register.service";
+import { createRecord } from "./create-record.service";
+import { listRecords } from "./list-records.service";
 
 let recordRepository: RecordRepository;
 let userRepository: InMemoryUserRepository;
@@ -29,9 +28,9 @@ describe("List all records service", () => {
   beforeEach(async () => {
     userRepository = makeInMemoryUserRepository();
     recordRepository = makeInMemoryRecordRepository();
-    const createRecordService = makeCreateRecordService(recordRepository);
+    const createRecordService = makeService(recordRepository, createRecord);
     const registerService = makeService(userRepository, registerUser);
-    const listRecordsService = makeListRecordsService(recordRepository);
+    const listRecordsService = makeService(recordRepository, listRecords);
 
     await registerService({
       email: "joerogan@hotmail.com",

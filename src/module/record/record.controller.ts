@@ -2,10 +2,9 @@ import { FastifyReply, FastifyRequest } from "fastify";
 
 import RecordRepository from "./repository/record.repository";
 import { createSchema, findAllSchema } from "./record.schemas";
-import {
-  makeCreateRecordService,
-  makeListRecordsService,
-} from "./factories/record-services.factory";
+import { makeService } from "@/utils";
+import { createRecord } from "./services/create-record.service";
+import { listRecords } from "./services/list-records.service";
 
 export default function recordController(recordRepository: RecordRepository) {
   return {
@@ -14,7 +13,7 @@ export default function recordController(recordRepository: RecordRepository) {
 
       const body = createSchema.parse(request.body);
 
-      const createRecordService = makeCreateRecordService(recordRepository);
+      const createRecordService = makeService(recordRepository, createRecord);
 
       await createRecordService({ ...body, userId });
 
@@ -27,7 +26,7 @@ export default function recordController(recordRepository: RecordRepository) {
 
       const params = findAllSchema.parse(request.query);
 
-      const listRecordsService = makeListRecordsService(recordRepository);
+      const listRecordsService = makeService(recordRepository, listRecords);
 
       const data = await listRecordsService({ ...params, userId });
 
