@@ -2,12 +2,12 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { addHours, sub } from "date-fns";
 
 import UserRepository from "@/module/user/repository/user.repository";
-import {
-  makeGetProfileService,
-  makeLoginService,
-  makeRegisterService,
-} from "./factories/auth-services.factory";
+
 import { registerSchema, loginSchema } from "./auth.schemas";
+import { makeService } from "@/utils";
+import { getProfile } from "./services/get-profile.service";
+import { registerUser } from "./services/register.service";
+import { login } from "./services/login.service";
 
 export default function authController(userRepository: UserRepository) {
   const isProduction = process.env.NODE_ENV === "production";
@@ -30,7 +30,7 @@ export default function authController(userRepository: UserRepository) {
     async getProfile(request: FastifyRequest, reply: FastifyReply) {
       const userId = request.user.sign.sub;
 
-      const getProfileService = makeGetProfileService(userRepository);
+      const getProfileService = makeService(userRepository, getProfile);
 
       const { user } = await getProfileService(userId);
 
@@ -39,7 +39,7 @@ export default function authController(userRepository: UserRepository) {
     async register(request: FastifyRequest, reply: FastifyReply) {
       const body = registerSchema.parse(request.body);
 
-      const registerUserService = makeRegisterService(userRepository);
+      const registerUserService = makeService(userRepository, registerUser);
 
       await registerUserService(body);
 
@@ -50,7 +50,7 @@ export default function authController(userRepository: UserRepository) {
     async login(request: FastifyRequest, reply: FastifyReply) {
       const body = loginSchema.parse(request.body);
 
-      const loginService = makeLoginService(userRepository);
+      const loginService = makeService(userRepository, login);
 
       const { user } = await loginService(body);
 

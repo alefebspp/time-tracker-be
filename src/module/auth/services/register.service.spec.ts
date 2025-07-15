@@ -1,47 +1,62 @@
-import { describe, it, beforeEach, expect } from "vitest";
+import { describe, it, beforeEach, expect, vi } from "vitest";
+import * as bcrypt from "bcrypt";
 
-import { CreateUserDTO } from "@/module/user/repository/user.repository";
-import { makeRegisterService } from "../factories/auth-services.factory";
-import makeInMemoryUserRepository, {
-  InMemoryUserRepository,
-} from "@/module/user/repository/in-memory-user.repository";
+import UserRepository, {
+  CreateUserDTO,
+} from "@/module/user/repository/user.repository";
 
 import AppError from "@/errors/AppError";
+import { makeService } from "@/utils";
+import { registerUser } from "./register.service";
 
-let userRepository: InMemoryUserRepository;
-let registerUser: (data: CreateUserDTO) => Promise<void>;
+let sut: (data: CreateUserDTO) => Promise<void>;
+
+vi.mock("bcrypt");
+
+const mockRepo = {
+  findByEmail: vi.fn(),
+  create: vi.fn(),
+};
 
 describe("Register service", () => {
   beforeEach(() => {
-    userRepository = makeInMemoryUserRepository();
-    registerUser = makeRegisterService(userRepository);
+    sut = makeService(mockRepo as unknown as UserRepository, registerUser);
   });
 
-  it("should be able to create a new user", async () => {
-    await registerUser({
-      name: "John Doe",
-      email: "johndoe@hotmail.com",
-      password: "123456789",
-    });
+  it("should hash user password properly", async () => {
+    mockRepo.findByEmail.mockResolvedValue(null);
+    const mockHashedPassword = "hashed-password";
+    (bcrypt.hash as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      mockHashedPassword
+    );
 
-    await registerUser({
-      name: "Joe Rogan",
-      email: "joerogan@hotmail.com",
-      password: "123456789",
-    });
+    const userData: CreateUserDTO = {
+      name: "Alice",
+      email: "alice@example.com",
+      password: "plaintext-password",
+    };
 
-    expect(userRepository.users.length).toEqual(2);
+    await sut(userData);
+
+    expect(bcrypt.hash).toHaveBeenCalledWith("plaintext-password", 10);
+    expect(mockRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Alice",
+        email: "alice@example.com",
+        password: mockHashedPassword,
+      })
+    );
   });
 
   it("should throw error if email is already registered", async () => {
-    await registerUser({
+    mockRepo.findByEmail.mockResolvedValue({
+      id: "1",
       name: "John Doe",
       email: "johndoe@hotmail.com",
-      password: "123456789",
     });
 
-    await expect(() =>
-      registerUser({
+    await expect(
+      sut({
         name: "John Doe",
         email: "johndoe@hotmail.com",
         password: "123456789",

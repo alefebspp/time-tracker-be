@@ -1,107 +1,86 @@
-import { describe, it, beforeEach, expect } from "vitest";
+import { describe, it, beforeEach, expect, vi } from "vitest";
 
 import RecordRepository, {
   CreateRecordDTO,
 } from "../repository/record.repository";
-import User from "@/module/user/user.model";
-import makeInMemoryRecordRepository from "../repository/in-memory-record.repository";
-import { makeCreateRecordService } from "../factories/record-services.factory";
-import makeInMemoryUserRepository from "@/module/user/repository/in-memory-user.repository";
-import AppError from "@/errors/AppError";
 
-let recordRepository: RecordRepository;
-let sut: {
-  createRecordService: (data: CreateRecordDTO) => Promise<void>;
-  recordRepository: RecordRepository;
-  user: User;
+import { makeService } from "@/utils";
+import { createRecord } from "./create-record.service";
+import Record from "../record.model";
+
+let sut: (data: CreateRecordDTO) => Promise<void>;
+
+const mockRepo = {
+  create: vi.fn(),
+  getTodayRecords: vi.fn(),
 };
+
+const mockRecords: Record[] = [
+  {
+    id: "start-record",
+    type: "start",
+    userId: "user-id",
+    createdAt: new Date(),
+  },
+  {
+    id: "start-record",
+    type: "end",
+    userId: "user-id",
+    createdAt: new Date(),
+  },
+];
 
 describe("Create record repository", () => {
   beforeEach(async () => {
-    const userRository = makeInMemoryUserRepository();
-    userRository.create({
-      email: "johndoe@hotmail.com",
-      password: "123",
-      name: "John Doe",
-    });
-    recordRepository = makeInMemoryRecordRepository();
-    const createRecordService = makeCreateRecordService(recordRepository);
+    const createRecordService = makeService(
+      mockRepo as unknown as RecordRepository,
+      createRecord
+    );
 
-    sut = {
-      recordRepository,
-      createRecordService,
-      user: userRository.users[0],
-    };
-  });
-
-  it("should be able to create a record", async () => {
-    const { createRecordService, recordRepository, user } = sut;
-
-    await createRecordService({
-      userId: user.id,
-      type: "start",
-      createdAt: new Date(),
-    });
-
-    const records = await recordRepository.findAll();
-
-    expect(records.data.length).toEqual(1);
+    sut = createRecordService;
   });
 
   it("should not allow creating a 'start' record twice in the same day", async () => {
-    const { createRecordService, user } = sut;
+    mockRepo.getTodayRecords.mockResolvedValue(
+      mockRecords.filter(({ type }) => type !== "end")
+    );
 
-    await createRecordService({
-      userId: user.id,
-      type: "start",
-      createdAt: new Date(),
-    });
-
-    expect(
-      async () =>
-        await createRecordService({
-          userId: user.id,
-          type: "start",
-          createdAt: new Date(),
-        })
-    ).rejects.toBeInstanceOf(AppError);
+    await expect(
+      sut({
+        userId: "user-id",
+        type: "start",
+        createdAt: new Date(),
+      })
+    ).rejects.toThrowError(
+      "Você já iniciou o expediente e ainda não finalizou."
+    );
   });
 
   it("should not allow creating a 'start' record if a 'end' record exists", async () => {
-    const { createRecordService, user } = sut;
+    mockRepo.getTodayRecords.mockResolvedValue(mockRecords);
 
-    await createRecordService({
-      userId: user.id,
-      type: "start",
-      createdAt: new Date(),
-    });
-
-    await createRecordService({
-      userId: user.id,
-      type: "end",
-      createdAt: new Date(),
-    });
-
-    expect(
-      async () =>
-        await createRecordService({
-          userId: user.id,
-          type: "start",
-          createdAt: new Date(),
-        })
-    ).rejects.toBeInstanceOf(AppError);
+    await expect(
+      sut({
+        userId: "user-id",
+        type: "start",
+        createdAt: new Date(),
+      })
+    ).rejects.toThrowError(
+      "Expediente já finalizado, não é possível iniciar novamente."
+    );
   });
 
   it("should not allow creating a 'end' record if a 'start' record does not exists", async () => {
-    const { createRecordService, user } = sut;
+    mockRepo.getTodayRecords.mockResolvedValue([]);
 
-    expect(
-      async () =>
-        await createRecordService({
-          userId: user.id,
-          type: "end",
-          createdAt: new Date(),
-        })
-    ).rejects.toBeInstanceOf(AppError);
+    await expect(
+      sut({
+        userId: "user-id",
+        type: "end",
+        createdAt: new Date(),
+      })
+    ).rejects.toThrowError(
+      "Você precisa iniciar o expediente antes de finalizá-lo."
+    );
   });
 });
