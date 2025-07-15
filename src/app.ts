@@ -62,7 +62,9 @@ app.setErrorHandler(function (error, request, reply) {
   console.log("ERROR:", error);
 
   if (error instanceof AppError) {
-    return reply.status(error.statusCode).send({ message: error.message });
+    return reply
+      .status(error.statusCode)
+      .send({ error: { message: error.message } });
   }
 
   if (hasZodFastifySchemaValidationErrors(error)) {
