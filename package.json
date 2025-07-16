@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "build": "tsup src --out-dir build --legacy-output",
+    "build": "tsup src --out-dir build --format esm --splitting false",
     "start": "node build/server.js",
     "start:dev": "tsx watch src/server.ts"
   },
