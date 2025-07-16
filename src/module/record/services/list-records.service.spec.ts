@@ -1,130 +1,137 @@
-import { describe, it, beforeEach, expect } from "vitest";
-
+import { describe, it, beforeEach, expect, vi } from "vitest";
 import Record from "../record.model";
 import RecordRepository, {
   FindAllRecordsParams,
 } from "../repository/record.repository";
-import User from "@/module/user/user.model";
-import makeInMemoryUserRepository, {
-  InMemoryUserRepository,
-} from "@/module/user/repository/in-memory-user.repository";
-import { makeRegisterService } from "@/module/auth/factories/auth-services.factory";
-import makeInMemoryRecordRepository from "../repository/in-memory-record.repository";
-import {
-  makeCreateRecordService,
-  makeListRecordsService,
-} from "../factories/record-services.factory";
+import { listRecords } from "./list-records.service";
+import { makeService } from "@/utils";
+import { endOfDay, parseISO, startOfDay } from "date-fns";
 
-let recordRepository: RecordRepository;
-let userRepository: InMemoryUserRepository;
-let sut: {
-  listRecordsService: (
-    params?: FindAllRecordsParams
-  ) => Promise<{ data: Record[] }>;
-  users: User[];
-};
+let sut: (params?: FindAllRecordsParams) => Promise<{ data: Record[] }>;
+
+const mockRecords: Record[] = [
+  {
+    id: "1",
+    userId: "user-1",
+    type: "start",
+    createdAt: new Date("2025-07-04T08:00:00Z"),
+  },
+  {
+    id: "2",
+    userId: "user-1",
+    type: "end",
+    createdAt: new Date("2025-07-04T17:00:00Z"),
+  },
+  {
+    id: "3",
+    userId: "user-1",
+    type: "start",
+    createdAt: new Date("2025-07-05T09:00:00Z"),
+  },
+  {
+    id: "4",
+    userId: "user-1",
+    type: "end",
+    createdAt: new Date("2025-07-05T17:00:00Z"),
+  },
+  {
+    id: "5",
+    userId: "user-2",
+    type: "start",
+    createdAt: new Date("2025-07-06T10:00:00Z"),
+  },
+  {
+    id: "6",
+    userId: "user-2",
+    type: "end",
+    createdAt: new Date("2025-07-06T18:00:00Z"),
+  },
+];
 
 describe("List all records service", () => {
-  beforeEach(async () => {
-    userRepository = makeInMemoryUserRepository();
-    recordRepository = makeInMemoryRecordRepository();
-    const createRecordService = makeCreateRecordService(recordRepository);
-    const registerService = makeRegisterService(userRepository);
-    const listRecordsService = makeListRecordsService(recordRepository);
+  beforeEach(() => {
+    const mockRepository = {
+      findAll: vi.fn(async (params?: FindAllRecordsParams) => {
+        let filtered = [...mockRecords];
 
-    await registerService({
-      email: "joerogan@hotmail.com",
-      password: "123",
-      name: "Joe Rogan",
-    });
-    await registerService({
-      email: "johndoe@hotmail.com",
-      password: "123",
-      name: "John Doe",
-    });
+        if (params?.userId) {
+          filtered = filtered.filter((r) => r.userId === params.userId);
+        }
 
-    const [user1, user2] = userRepository.users;
+        if (params?.type) {
+          filtered = filtered.filter((r) => r.type === params.type);
+        }
 
-    const today = new Date("2025-07-06T10:00:00Z");
-    const yesterday = new Date("2025-07-05T09:00:00Z");
-    const twoDaysAgo = new Date("2025-07-04T08:00:00Z");
+        if (params?.startDate && params?.endDate) {
+          const start = startOfDay(parseISO(params.startDate));
+          const end = endOfDay(parseISO(params.endDate));
 
-    await createRecordService({
-      type: "start",
-      userId: user1.id,
-      createdAt: twoDaysAgo,
-    });
+          filtered = filtered.filter((r) => {
+            const createdAt = new Date(r.createdAt);
+            return createdAt >= start && createdAt <= end;
+          });
+        }
 
-    await createRecordService({
-      type: "end",
-      userId: user1.id,
-      createdAt: new Date("2025-07-04T17:00:00Z"),
-    });
+        const offset = params?.offset ?? 0;
+        const limit = params?.limit ?? filtered.length;
 
-    await createRecordService({
-      type: "start",
-      userId: user1.id,
-      createdAt: yesterday,
-    });
+        const paginated = filtered.slice(offset, offset + limit);
+        const total = filtered.length;
 
-    await createRecordService({
-      type: "end",
-      userId: user1.id,
-      createdAt: new Date("2025-07-05T17:00:00Z"),
-    });
+        const nextOffset = offset + paginated.length;
+        const hasMore = nextOffset < total;
 
-    await createRecordService({
-      type: "start",
-      userId: user2.id,
-      createdAt: today,
-    });
+        return {
+          data: paginated,
+          total,
+          nextOffset: hasMore ? nextOffset : null,
+          hasMore,
+        };
+      }),
+    };
 
-    await createRecordService({
-      type: "end",
-      userId: user2.id,
-      createdAt: new Date("2025-07-06T18:00:00Z"),
-    });
-
-    sut = { listRecordsService, users: userRepository.users };
+    sut = makeService(
+      mockRepository as unknown as RecordRepository,
+      listRecords
+    );
   });
 
   it("should list all records for a specific user", async () => {
-    const user = sut.users[0];
-    const records = await sut.listRecordsService({ userId: user.id });
+    const records = await sut({ userId: "user-1" });
 
     expect(records.data).toHaveLength(4);
-    expect(records.data.every((r) => r.userId === user.id)).toBe(true);
+    expect(records.data.every((r) => r.userId === "user-1")).toBe(true);
   });
 
   it("should filter records by type 'start'", async () => {
-    const records = await sut.listRecordsService({ type: "start" });
+    const records = await sut({ type: "start" });
 
     expect(records.data).toHaveLength(3);
     expect(records.data.every((r) => r.type === "start")).toBe(true);
   });
 
   it("should filter records by type 'end'", async () => {
-    const records = await sut.listRecordsService({ type: "end" });
+    const records = await sut({ type: "end" });
 
     expect(records.data).toHaveLength(3);
     expect(records.data.every((r) => r.type === "end")).toBe(true);
   });
 
   it("should limit the number of returned records", async () => {
-    const records = await sut.listRecordsService({ limit: 2 });
+    const records = await sut({ limit: 2 });
 
     expect(records.data).toHaveLength(2);
   });
 
   it("should apply offset correctly", async () => {
-    const firstPage = await sut.listRecordsService({ limit: 2 });
-    const secondPage = await sut.listRecordsService({ limit: 2, offset: 2 });
+    const firstPage = await sut({ limit: 2 });
+    const secondPage = await sut({ limit: 2, offset: 2 });
 
     expect(secondPage.data[0].id).not.toBe(firstPage.data[0].id);
   });
 
   it("should filter records by startDate and endDate", async () => {
-    const records = await sut.listRecordsService({
+    const records = await sut({
       startDate: "2025-07-05",
       endDate: "2025-07-05",
     });
@@ -141,7 +148,7 @@ describe("List all records service", () => {
   });
 
   it("should return an empty array if no records match the date range", async () => {
-    const records = await sut.listRecordsService({
+    const records = await sut({
       startDate: "2025-07-01",
       endDate: "2025-07-02",
     });
@@ -150,10 +157,8 @@ describe("List all records service", () => {
   });
 
   it("should combine filters: userId, type, and date", async () => {
-    const user = sut.users[0];
-
-    const records = await sut.listRecordsService({
-      userId: user.id,
+    const records = await sut({
+      userId: "user-1",
       type: "start",
       startDate: "2025-07-04",
       endDate: "2025-07-04",
@@ -161,6 +166,6 @@ describe("List all records service", () => {
 
     expect(records.data).toHaveLength(1);
     expect(records.data[0].type).toBe("start");
-    expect(records.data[0].userId).toBe(user.id);
+    expect(records.data[0].userId).toBe("user-1");
   });
 });

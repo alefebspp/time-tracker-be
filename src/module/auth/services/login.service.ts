@@ -8,23 +8,22 @@ export type LoginDTO = {
   password: string;
 };
 
-export async function login(
-  userRepository: UserRepository,
-  { email, password }: LoginDTO
-) {
-  const user = await userRepository.findByEmail(email);
+export function login(userRepository: UserRepository) {
+  return async function ({ email, password }: LoginDTO) {
+    const user = await userRepository.findByEmail(email);
 
-  if (!user) {
-    throw new AppError(400, "Email ou senha incorretos.");
-  }
+    if (!user) {
+      throw new AppError(400, "Email ou senha incorretos.");
+    }
 
-  const passwordsMatch = await compare(password, user.passwordHash);
+    const passwordsMatch = await compare(password, user.passwordHash);
 
-  if (!passwordsMatch) {
-    throw new AppError(400, "Email ou senha incorretos.");
-  }
+    if (!passwordsMatch) {
+      throw new AppError(400, "Email ou senha incorretos.");
+    }
 
-  return {
-    user,
+    return {
+      user,
+    };
   };
 }

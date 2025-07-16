@@ -14,3 +14,5 @@ export type FastifyTypedInstance = FastifyInstance<
   FastifyBaseLogger,
   ZodTypeProvider
 >;
+
+export type Service<R, A, O> = (repo: R) => (args: A) => Promise<O>;
