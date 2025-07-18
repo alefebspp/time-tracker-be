@@ -17,6 +17,7 @@ import AppError from "./errors/AppError";
 import authRoutes from "./routes/auth.routes";
 import { env } from "./config/env";
 import recordRoutes from "./routes/record.routes";
+import testsRoutes from "./routes/test.routes";
 
 const app = Fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -57,6 +58,7 @@ app.register(cors, {
 
 app.register(authRoutes, { prefix: "/auth" });
 app.register(recordRoutes, { prefix: "/record" });
+app.register(testsRoutes, { prefix: "/test" });
 
 app.setErrorHandler(function (error, request, reply) {
   console.log("ERROR:", error);
