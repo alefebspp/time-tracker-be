@@ -13,6 +13,8 @@ export default async function testsRoutes(app: FastifyInstance) {
       where: { email: { endsWith: "@test.local" } },
     });
 
+    await prisma.record.deleteMany();
+
     await prisma.user.deleteMany({
       where: { id: { in: testUsers.map(({ id }) => id) } },
     });
