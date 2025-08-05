@@ -1,9 +1,10 @@
-import UserRepository, { CreateUserDTO } from "./user.repository";
+import { CreateUserParams } from "../types";
+import UserRepository from "./user.repository";
 import prisma from "@/config/prisma";
 
 export default function makePrismaUserRepository(): UserRepository {
   return {
-    async create({ password, ...data }: CreateUserDTO) {
+    async create({ password, ...data }: CreateUserParams) {
       await prisma.user.create({ data: { ...data, passwordHash: password } });
     },
 
