@@ -2,85 +2,74 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { addHours, sub } from "date-fns";
 
 import UserRepository from "@/module/user/repository/user.repository";
-
 import { registerSchema, loginSchema } from "./auth.schemas";
-import { makeService } from "@/utils";
-import { getProfile } from "./services/get-profile.service";
-import { registerUser } from "./services/register.service";
-import { login } from "./services/login.service";
+import * as authService from "./services/auth.service";
+import {
+  COOKIE,
+  HTTP_STATUS,
+  MESSAGES,
+  TOKEN_EXPIRATION,
+  ENV,
+} from "@/constants";
 
-export default function authController(userRepository: UserRepository) {
-  const isProduction = process.env.NODE_ENV === "production";
+export async function logout(request: FastifyRequest, reply: FastifyReply) {
+  return reply
+    .setCookie(COOKIE.NAME, "", {
+      path: COOKIE.PATH,
+      secure: ENV.isProduction,
+      sameSite: ENV.isProduction ? "none" : true,
+      httpOnly: true,
+      expires: sub(new Date(), { days: COOKIE.MAX_AGE_DAYS }),
+    })
+    .status(HTTP_STATUS.OK)
+    .send({ message: MESSAGES.LOGOUT_SUCCESS });
+}
 
-  return {
-    async logout(request: FastifyRequest, reply: FastifyReply) {
-      return reply
-        .setCookie("refreshToken", "", {
-          path: "/",
-          secure: isProduction,
-          sameSite: isProduction ? "none" : true,
-          httpOnly: true,
-          expires: sub(new Date(), {
-            days: 7,
-          }),
-        })
-        .status(200)
-        .send({ message: "Sucesso" });
-    },
-    async getProfile(request: FastifyRequest, reply: FastifyReply) {
-      const userId = request.user.sign.sub;
+export async function getProfile(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  userRepository: UserRepository
+) {
+  const userId = request.user.sign.sub;
+  const { user } = await authService.getProfile(userRepository, userId);
+  const { passwordHash: _, ...safeUser } = user;
 
-      const getProfileService = makeService(userRepository, getProfile);
+  return reply.status(HTTP_STATUS.OK).send({ user: safeUser });
+}
 
-      const { user } = await getProfileService(userId);
+export async function register(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  userRepository: UserRepository
+) {
+  const body = registerSchema.parse(request.body);
+  await authService.registerUser(userRepository, body);
 
-      return reply.status(200).send({ user });
-    },
-    async register(request: FastifyRequest, reply: FastifyReply) {
-      const body = registerSchema.parse(request.body);
+  return reply.status(HTTP_STATUS.OK).send({ message: MESSAGES.USER_CREATED });
+}
 
-      const registerUserService = makeService(userRepository, registerUser);
+export async function login(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  userRepository: UserRepository
+) {
+  const body = loginSchema.parse(request.body);
+  const { user } = await authService.login(userRepository, body);
+  const { passwordHash, ...normalizedUser } = user;
 
-      await registerUserService(body);
+  const token = await reply.jwtSign({ sign: { sub: user.id } });
+  const refreshToken = await reply.jwtSign({
+    sign: { sub: user.id, expiresIn: TOKEN_EXPIRATION.REFRESH },
+  });
 
-      return reply
-        .status(200)
-        .send({ message: "Usuário cadastrado com sucesso." });
-    },
-    async login(request: FastifyRequest, reply: FastifyReply) {
-      const body = loginSchema.parse(request.body);
-
-      const loginService = makeService(userRepository, login);
-
-      const { user } = await loginService(body);
-
-      const { passwordHash, ...data } = user;
-
-      const normalizedUser = data;
-
-      const token = await reply.jwtSign({
-        sign: {
-          sub: user.id,
-        },
-      });
-
-      const refreshToken = await reply.jwtSign({
-        sign: {
-          sub: user.id,
-          expiresIn: "7d",
-        },
-      });
-
-      return reply
-        .setCookie("refreshToken", refreshToken, {
-          path: "/",
-          secure: isProduction,
-          sameSite: isProduction ? "none" : true,
-          httpOnly: true,
-          expires: addHours(new Date(), 1),
-        })
-        .status(200)
-        .send({ token, user: normalizedUser });
-    },
-  };
+  return reply
+    .setCookie(COOKIE.NAME, refreshToken, {
+      path: COOKIE.PATH,
+      secure: ENV.isProduction,
+      sameSite: ENV.isProduction ? "none" : true,
+      httpOnly: true,
+      expires: addHours(new Date(), 1),
+    })
+    .status(HTTP_STATUS.OK)
+    .send({ token, user: normalizedUser });
 }

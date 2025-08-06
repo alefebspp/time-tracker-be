@@ -1,36 +1,36 @@
 import { FastifyReply, FastifyRequest } from "fastify";
-
 import RecordRepository from "./repository/record.repository";
 import { createSchema, findAllSchema } from "./record.schemas";
-import { makeService } from "@/utils";
-import { createRecord } from "./services/create-record.service";
-import { listRecords } from "./services/list-records.service";
+import * as recordsService from "./services/records.service";
+import { HTTP_STATUS, MESSAGES } from "@/constants";
 
-export default function recordController(recordRepository: RecordRepository) {
-  return {
-    async create(request: FastifyRequest, reply: FastifyReply) {
-      const userId = request.user.sign.sub;
+export async function create(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  recordRepository: RecordRepository
+) {
+  const userId = request.user.sign.sub;
+  const body = createSchema.parse(request.body);
 
-      const body = createSchema.parse(request.body);
+  await recordsService.createRecord(recordRepository, { ...body, userId });
 
-      const createRecordService = makeService(recordRepository, createRecord);
+  return reply
+    .status(HTTP_STATUS.CREATED)
+    .send({ message: MESSAGES.RECORD_CREATED });
+}
 
-      await createRecordService({ ...body, userId });
+export async function findAll(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  recordRepository: RecordRepository
+) {
+  const userId = request.user.sign.sub;
+  const params = findAllSchema.parse(request.query);
 
-      return reply
-        .status(201)
-        .send({ message: "Ponto registrado com sucesso." });
-    },
-    async findAll(request: FastifyRequest, reply: FastifyReply) {
-      const userId = request.user.sign.sub;
+  const data = await recordsService.listRecords(recordRepository, {
+    ...params,
+    userId,
+  });
 
-      const params = findAllSchema.parse(request.query);
-
-      const listRecordsService = makeService(recordRepository, listRecords);
-
-      const data = await listRecordsService({ ...params, userId });
-
-      return reply.status(200).send(data);
-    },
-  };
+  return reply.status(HTTP_STATUS.OK).send(data);
 }
