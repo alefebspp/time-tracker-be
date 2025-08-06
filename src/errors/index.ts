@@ -1,13 +1,14 @@
 import AppError from "./AppError";
+import { HTTP_STATUS } from "@/constants";
 
 export class BadRequestError extends AppError {
   constructor(message = "Bad Request") {
-    super(400, message);
+    super(HTTP_STATUS.BAD_REQUEST, message);
   }
 }
 
 export class UnauthorizedError extends AppError {
   constructor(message = "Unauthorized") {
-    super(401, message);
+    super(HTTP_STATUS.UNAUTHORIZED, message);
   }
 }
