@@ -1,25 +1,13 @@
 import Record from "../record.model";
-
-export type CreateRecordDTO = Omit<Record, "id" | "updatedAt">;
-
-export type FindAllRecordsParams = {
-  userId?: string;
-  type?: "start" | "end";
-  limit?: number;
-  offset?: number;
-  startDate?: string;
-  endDate?: string;
-};
+import { CreateRecordParams, FindAllRecordsParams } from "../types";
 
 export default interface RecordRepository {
-  create: (data: CreateRecordDTO) => Promise<void>;
+  create: (data: CreateRecordParams) => Promise<void>;
   getTodayRecords: (params: {
     userId: string;
     referenceDate?: Date;
   }) => Promise<Record[]>;
-  findAll: (
-    params?: FindAllRecordsParams
-  ) => Promise<{
+  findAll: (params?: FindAllRecordsParams) => Promise<{
     data: Record[];
     total: number;
     nextOffset: number | null;
