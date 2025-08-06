@@ -1,12 +1,13 @@
 import z from "zod";
 
 import { FastifyTypedInstance } from "@/types";
-import { makeRecordController } from "@/module/record/factories/record-controller.factory";
 import { createSchema, findAllSchema } from "@/module/record/record.schemas";
 import { verifyJWT } from "@/middleware/verify-jwt";
+import makePrismaRecordRepository from "@/module/record/repository/prisma-record.repository";
+import * as recordsController from "@/module/record/record.controller";
 
 export default async function recordRoutes(app: FastifyTypedInstance) {
-  const recordController = makeRecordController();
+  const prismaRecordRepository = makePrismaRecordRepository();
 
   app.post(
     "/",
@@ -22,7 +23,8 @@ export default async function recordRoutes(app: FastifyTypedInstance) {
         },
       },
     },
-    recordController.create
+    (request, reply) =>
+      recordsController.create(request, reply, prismaRecordRepository)
   );
 
   app.get(
@@ -52,6 +54,7 @@ export default async function recordRoutes(app: FastifyTypedInstance) {
         },
       },
     },
-    recordController.findAll
+    (request, reply) =>
+      recordsController.findAll(request, reply, prismaRecordRepository)
   );
 }

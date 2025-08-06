@@ -7,5 +7,3 @@ export default interface UserRepository {
   findById: (id: string) => Promise<User | null>;
   findByEmail: (email: string) => Promise<User | null>;
 }
-
-export type CreateUserDTO = Pick<User, "email" | "name"> & { password: string };

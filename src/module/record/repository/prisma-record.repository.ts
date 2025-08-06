@@ -2,14 +2,12 @@ import { format } from "date-fns";
 import { Prisma } from "@prisma/client";
 
 import prisma from "@/config/prisma";
-import RecordRepository, {
-  CreateRecordDTO,
-  FindAllRecordsParams,
-} from "./record.repository";
+import RecordRepository from "./record.repository";
+import { CreateRecordParams, FindAllRecordsParams } from "../types";
 
 export default function makePrismaRecordRepository(): RecordRepository {
   return {
-    async create(data: CreateRecordDTO) {
+    async create(data: CreateRecordParams) {
       await prisma.record.create({ data });
     },
     async getTodayRecords({
