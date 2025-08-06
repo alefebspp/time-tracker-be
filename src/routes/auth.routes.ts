@@ -4,13 +4,10 @@ import { FastifyTypedInstance } from "@/types";
 import { loginSchema, registerSchema } from "@/module/auth/auth.schemas";
 import { verifyJWT } from "@/middleware/verify-jwt";
 import makePrismaUserRepository from "@/module/user/repository/prisma-user.repository";
-import authController from "@/module/auth/auth.controller";
+import * as authController from "@/module/auth/auth.controller";
 
 export default async function authRoutes(app: FastifyTypedInstance) {
   const userPrismaRepository = makePrismaUserRepository();
-
-  const { register, login, logout, getProfile } =
-    authController(userPrismaRepository);
 
   app.post(
     "/register",
@@ -25,7 +22,8 @@ export default async function authRoutes(app: FastifyTypedInstance) {
         },
       },
     },
-    register
+    (request, reply) =>
+      authController.register(request, reply, userPrismaRepository)
   );
 
   app.post(
@@ -42,7 +40,7 @@ export default async function authRoutes(app: FastifyTypedInstance) {
         },
       },
     },
-    logout
+    authController.logout
   );
 
   app.get(
@@ -66,7 +64,8 @@ export default async function authRoutes(app: FastifyTypedInstance) {
         },
       },
     },
-    getProfile
+    (request, reply) =>
+      authController.getProfile(request, reply, userPrismaRepository)
   );
 
   app.post(
@@ -91,6 +90,7 @@ export default async function authRoutes(app: FastifyTypedInstance) {
         },
       },
     },
-    login
+    (request, reply) =>
+      authController.login(request, reply, userPrismaRepository)
   );
 }
