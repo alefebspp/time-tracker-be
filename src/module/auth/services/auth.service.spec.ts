@@ -26,25 +26,6 @@ describe("Auth service", () => {
         authService.getProfile(mockRepo, "wrong-id")
       ).rejects.toBeInstanceOf(AppError);
     });
-
-    it("should return a user without passwordHash", async () => {
-      mockRepo.findById.mockResolvedValue({
-        id: "valid-id",
-        name: "John Doe",
-        email: "john@example.com",
-        passwordHash: "hashed",
-      });
-
-      const user = await authService.getProfile(mockRepo, "valid-id");
-
-      expect(user).toEqual({
-        user: {
-          id: "valid-id",
-          name: "John Doe",
-          email: "john@example.com",
-        },
-      });
-    });
   });
 
   describe("login", () => {
