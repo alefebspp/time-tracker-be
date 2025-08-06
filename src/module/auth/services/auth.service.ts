@@ -6,6 +6,7 @@ import {
   RegisterUserParams,
 } from "@/module/auth/types/services";
 import { BadRequestError, UnauthorizedError } from "@/errors";
+import { ErrorMessages, SALT_ROUNDS } from "@/constants";
 
 export async function login(
   userRepository: UserRepository,
@@ -14,13 +15,13 @@ export async function login(
   const user = await userRepository.findByEmail(email);
 
   if (!user) {
-    throw new BadRequestError("Email ou senha incorretos.");
+    throw new BadRequestError(ErrorMessages.INVALID_CREDENTIALS);
   }
 
   const passwordsMatch = await compare(password, user.passwordHash);
 
   if (!passwordsMatch) {
-    throw new BadRequestError("Email ou senha incorretos.");
+    throw new BadRequestError(ErrorMessages.INVALID_CREDENTIALS);
   }
 
   return {
@@ -35,10 +36,10 @@ export async function registerUser(
   const emailAlreadyExists = await userRepository.findByEmail(data.email);
 
   if (emailAlreadyExists) {
-    throw new BadRequestError("Email já registrado");
+    throw new BadRequestError(ErrorMessages.EMAIL_ALREADY_REGISTERED);
   }
 
-  const passwordHash = await hash(password, 10);
+  const passwordHash = await hash(password, SALT_ROUNDS);
 
   await userRepository.create({ ...data, password: passwordHash });
 }
@@ -51,12 +52,10 @@ export async function getProfile(userRepository: UserRepository, id: string) {
   const user = await userRepository.findById(id);
 
   if (!user || !id) {
-    throw new BadRequestError("Usuário não encontrado");
+    throw new BadRequestError(ErrorMessages.USER_NOT_FOUND);
   }
 
-  const { passwordHash, ...data } = user;
-
   return {
-    user: data,
+    user,
   };
 }

@@ -1,8 +1,8 @@
 import { toZonedTime, fromZonedTime, format } from "date-fns-tz";
-
 import RecordRepository from "../repository/record.repository";
 import { CreateRecordParams, FindAllRecordsParams } from "../types";
 import { BadRequestError } from "@/errors";
+import { ErrorMessages, TIMEZONE, RecordTypes } from "@/constants";
 
 export function listRecords(
   recordRepository: RecordRepository,
@@ -15,12 +15,10 @@ export async function createRecord(
   recordRepository: RecordRepository,
   data: CreateRecordParams
 ) {
-  const timeZone = "America/Sao_Paulo";
-
-  const zonedCreatedAt = toZonedTime(data.createdAt, timeZone);
+  const zonedCreatedAt = toZonedTime(data.createdAt, TIMEZONE);
 
   const formatted = format(zonedCreatedAt, "yyyy-MM-dd HH:mm:ss", {
-    timeZone,
+    timeZone: TIMEZONE,
   });
 
   const createdAt = fromZonedTime(formatted, "UTC");
@@ -29,33 +27,28 @@ export async function createRecord(
     userId: data.userId,
     referenceDate: createdAt,
   });
+
   const typesToday = todayRecords.map((r) => r.type);
 
-  const hasStart = typesToday.includes("start");
-  const hasEnd = typesToday.includes("end");
+  const hasStart = typesToday.includes(RecordTypes.START);
+  const hasEnd = typesToday.includes(RecordTypes.END);
 
-  if (data.type === "start") {
+  if (data.type === RecordTypes.START) {
     if (hasEnd) {
-      throw new BadRequestError(
-        "Expediente já finalizado, não é possível iniciar novamente."
-      );
+      throw new BadRequestError(ErrorMessages.ALREADY_FINISHED);
     }
 
     if (hasStart && !hasEnd) {
-      throw new BadRequestError(
-        "Você já iniciou o expediente e ainda não finalizou."
-      );
+      throw new BadRequestError(ErrorMessages.ALREADY_STARTED);
     }
   }
 
-  if (data.type === "end") {
+  if (data.type === RecordTypes.END) {
     if (!hasStart) {
-      throw new BadRequestError(
-        "Você precisa iniciar o expediente antes de finalizá-lo."
-      );
+      throw new BadRequestError(ErrorMessages.NEED_TO_START_FIRST);
     }
     if (hasEnd) {
-      throw new BadRequestError("Você já finalizou o expediente hoje.");
+      throw new BadRequestError(ErrorMessages.ALREADY_ENDED);
     }
   }
 

@@ -1,8 +1,8 @@
 import { FastifyReply, FastifyRequest } from "fastify";
-
 import RecordRepository from "./repository/record.repository";
 import { createSchema, findAllSchema } from "./record.schemas";
 import * as recordsService from "./services/records.service";
+import { HTTP_STATUS, MESSAGES } from "@/constants";
 
 export async function create(
   request: FastifyRequest,
@@ -10,12 +10,13 @@ export async function create(
   recordRepository: RecordRepository
 ) {
   const userId = request.user.sign.sub;
-
   const body = createSchema.parse(request.body);
 
   await recordsService.createRecord(recordRepository, { ...body, userId });
 
-  return reply.status(201).send({ message: "Ponto registrado com sucesso." });
+  return reply
+    .status(HTTP_STATUS.CREATED)
+    .send({ message: MESSAGES.RECORD_CREATED });
 }
 
 export async function findAll(
@@ -24,7 +25,6 @@ export async function findAll(
   recordRepository: RecordRepository
 ) {
   const userId = request.user.sign.sub;
-
   const params = findAllSchema.parse(request.query);
 
   const data = await recordsService.listRecords(recordRepository, {
@@ -32,5 +32,5 @@ export async function findAll(
     userId,
   });
 
-  return reply.status(200).send(data);
+  return reply.status(HTTP_STATUS.OK).send(data);
 }

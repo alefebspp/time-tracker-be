@@ -2,26 +2,27 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { addHours, sub } from "date-fns";
 
 import UserRepository from "@/module/user/repository/user.repository";
-
 import { registerSchema, loginSchema } from "./auth.schemas";
-
 import * as authService from "./services/auth.service";
-
-const isProduction = process.env.NODE_ENV === "production";
+import {
+  COOKIE,
+  HTTP_STATUS,
+  MESSAGES,
+  TOKEN_EXPIRATION,
+  ENV,
+} from "@/constants";
 
 export async function logout(request: FastifyRequest, reply: FastifyReply) {
   return reply
-    .setCookie("refreshToken", "", {
-      path: "/",
-      secure: isProduction,
-      sameSite: isProduction ? "none" : true,
+    .setCookie(COOKIE.NAME, "", {
+      path: COOKIE.PATH,
+      secure: ENV.isProduction,
+      sameSite: ENV.isProduction ? "none" : true,
       httpOnly: true,
-      expires: sub(new Date(), {
-        days: 7,
-      }),
+      expires: sub(new Date(), { days: COOKIE.MAX_AGE_DAYS }),
     })
-    .status(200)
-    .send({ message: "Sucesso" });
+    .status(HTTP_STATUS.OK)
+    .send({ message: MESSAGES.LOGOUT_SUCCESS });
 }
 
 export async function getProfile(
@@ -30,10 +31,10 @@ export async function getProfile(
   userRepository: UserRepository
 ) {
   const userId = request.user.sign.sub;
-
   const { user } = await authService.getProfile(userRepository, userId);
+  const { passwordHash: _, ...safeUser } = user;
 
-  return reply.status(200).send({ user });
+  return reply.status(HTTP_STATUS.OK).send({ user: safeUser });
 }
 
 export async function register(
@@ -42,10 +43,9 @@ export async function register(
   userRepository: UserRepository
 ) {
   const body = registerSchema.parse(request.body);
-
   await authService.registerUser(userRepository, body);
 
-  return reply.status(200).send({ message: "Usuário cadastrado com sucesso." });
+  return reply.status(HTTP_STATUS.OK).send({ message: MESSAGES.USER_CREATED });
 }
 
 export async function login(
@@ -54,34 +54,22 @@ export async function login(
   userRepository: UserRepository
 ) {
   const body = loginSchema.parse(request.body);
-
   const { user } = await authService.login(userRepository, body);
+  const { passwordHash, ...normalizedUser } = user;
 
-  const { passwordHash, ...data } = user;
-
-  const normalizedUser = data;
-
-  const token = await reply.jwtSign({
-    sign: {
-      sub: user.id,
-    },
-  });
-
+  const token = await reply.jwtSign({ sign: { sub: user.id } });
   const refreshToken = await reply.jwtSign({
-    sign: {
-      sub: user.id,
-      expiresIn: "7d",
-    },
+    sign: { sub: user.id, expiresIn: TOKEN_EXPIRATION.REFRESH },
   });
 
   return reply
-    .setCookie("refreshToken", refreshToken, {
-      path: "/",
-      secure: isProduction,
-      sameSite: isProduction ? "none" : true,
+    .setCookie(COOKIE.NAME, refreshToken, {
+      path: COOKIE.PATH,
+      secure: ENV.isProduction,
+      sameSite: ENV.isProduction ? "none" : true,
       httpOnly: true,
       expires: addHours(new Date(), 1),
     })
-    .status(200)
+    .status(HTTP_STATUS.OK)
     .send({ token, user: normalizedUser });
 }
