@@ -1,8 +1,8 @@
 import { toZonedTime, fromZonedTime, format } from "date-fns-tz";
 
-import AppError from "@/errors/AppError";
 import RecordRepository from "../repository/record.repository";
 import { CreateRecordParams, FindAllRecordsParams } from "../types";
+import { BadRequestError } from "@/errors";
 
 export function listRecords(
   recordRepository: RecordRepository,
@@ -36,15 +36,13 @@ export async function createRecord(
 
   if (data.type === "start") {
     if (hasEnd) {
-      throw new AppError(
-        400,
+      throw new BadRequestError(
         "Expediente já finalizado, não é possível iniciar novamente."
       );
     }
 
     if (hasStart && !hasEnd) {
-      throw new AppError(
-        400,
+      throw new BadRequestError(
         "Você já iniciou o expediente e ainda não finalizou."
       );
     }
@@ -52,13 +50,12 @@ export async function createRecord(
 
   if (data.type === "end") {
     if (!hasStart) {
-      throw new AppError(
-        400,
+      throw new BadRequestError(
         "Você precisa iniciar o expediente antes de finalizá-lo."
       );
     }
     if (hasEnd) {
-      throw new AppError(400, "Você já finalizou o expediente hoje.");
+      throw new BadRequestError("Você já finalizou o expediente hoje.");
     }
   }
 
