@@ -21,11 +21,16 @@ export default async function testsRoutes(app: FastifyInstance) {
 
     const passwordHash = await hash("123456Test!", 10);
 
+    const testCompany = await prisma.company.create({
+      data: { name: "Test Company" },
+    });
+
     await prisma.user.create({
       data: {
         name: "Test User",
         email: "user@test.local",
         passwordHash,
+        companyId: testCompany.id,
       },
     });
 

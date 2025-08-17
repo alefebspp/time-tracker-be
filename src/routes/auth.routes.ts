@@ -3,11 +3,27 @@ import z from "zod";
 import { FastifyTypedInstance } from "@/types";
 import { loginSchema, registerSchema } from "@/module/auth/auth.schemas";
 import { verifyJWT } from "@/middleware/verify-jwt";
-import makePrismaUserRepository from "@/module/user/repository/prisma-user.repository";
+import * as userRepository from "@/module/user/repository/prisma-user.repository";
+import * as companyRepository from "@/module/company/repository/prisma-company.repository";
+import * as roleRepository from "@/module/roles/repository/prisma-role.repository";
+import { bindRepositoryToUserService } from "@/module/user/services/user.service";
+import { bindRepositoryToCompanyService } from "@/module/company/services/company.service";
+import { bindServices } from "@/module/auth/services/auth.service";
+import { bindRepositoryToRoleService } from "@/module/roles/services/roles.service";
 import * as authController from "@/module/auth/auth.controller";
 
 export default async function authRoutes(app: FastifyTypedInstance) {
-  const userPrismaRepository = makePrismaUserRepository();
+  const userService = bindRepositoryToUserService(userRepository);
+  const companyService = bindRepositoryToCompanyService(companyRepository);
+  const roleService = bindRepositoryToRoleService(roleRepository);
+
+  const services = {
+    userService,
+    companyService,
+    roleService,
+  };
+
+  const authService = bindServices(services);
 
   app.post(
     "/register",
@@ -22,8 +38,7 @@ export default async function authRoutes(app: FastifyTypedInstance) {
         },
       },
     },
-    (request, reply) =>
-      authController.register(request, reply, userPrismaRepository)
+    (...args) => authController.register(...args, authService)
   );
 
   app.post(
@@ -59,13 +74,13 @@ export default async function authRoutes(app: FastifyTypedInstance) {
               email: z.string().email(),
               createdAt: z.date(),
               updatedAt: z.date(),
+              roles: z.array(z.string()),
             }),
           }),
         },
       },
     },
-    (request, reply) =>
-      authController.getProfile(request, reply, userPrismaRepository)
+    (...args) => authController.getProfile(...args, authService)
   );
 
   app.post(
@@ -85,12 +100,12 @@ export default async function authRoutes(app: FastifyTypedInstance) {
               name: z.string(),
               createdAt: z.date(),
               updatedAt: z.date().nullable(),
+              roles: z.array(z.string()),
             }),
           }),
         },
       },
     },
-    (request, reply) =>
-      authController.login(request, reply, userPrismaRepository)
+    (...args) => authController.login(...args, authService)
   );
 }

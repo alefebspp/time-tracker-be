@@ -2,7 +2,7 @@ import { toZonedTime, fromZonedTime, format } from "date-fns-tz";
 import RecordRepository from "../repository/record.repository";
 import { CreateRecordParams, FindAllRecordsParams } from "../types";
 import { BadRequestError } from "@/errors";
-import { ErrorMessages, TIMEZONE, RecordTypes } from "@/constants";
+import { ERROR_MESSAGES, TIMEZONE, RECORD_TYPES } from "@/constants";
 
 export function listRecords(
   recordRepository: RecordRepository,
@@ -30,25 +30,25 @@ export async function createRecord(
 
   const typesToday = todayRecords.map((r) => r.type);
 
-  const hasStart = typesToday.includes(RecordTypes.START);
-  const hasEnd = typesToday.includes(RecordTypes.END);
+  const hasStart = typesToday.includes(RECORD_TYPES.START);
+  const hasEnd = typesToday.includes(RECORD_TYPES.END);
 
-  if (data.type === RecordTypes.START) {
+  if (data.type === RECORD_TYPES.START) {
     if (hasEnd) {
-      throw new BadRequestError(ErrorMessages.ALREADY_FINISHED);
+      throw new BadRequestError(ERROR_MESSAGES.ALREADY_FINISHED);
     }
 
     if (hasStart && !hasEnd) {
-      throw new BadRequestError(ErrorMessages.ALREADY_STARTED);
+      throw new BadRequestError(ERROR_MESSAGES.ALREADY_STARTED);
     }
   }
 
-  if (data.type === RecordTypes.END) {
+  if (data.type === RECORD_TYPES.END) {
     if (!hasStart) {
-      throw new BadRequestError(ErrorMessages.NEED_TO_START_FIRST);
+      throw new BadRequestError(ERROR_MESSAGES.NEED_TO_START_FIRST);
     }
     if (hasEnd) {
-      throw new BadRequestError(ErrorMessages.ALREADY_ENDED);
+      throw new BadRequestError(ERROR_MESSAGES.ALREADY_ENDED);
     }
   }
 

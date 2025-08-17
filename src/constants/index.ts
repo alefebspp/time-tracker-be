@@ -1,7 +1,9 @@
-export const ErrorMessages = {
+export const ERROR_MESSAGES = {
   INVALID_CREDENTIALS: "Email ou senha incorretos.",
   EMAIL_ALREADY_REGISTERED: "Email já registrado",
   USER_NOT_FOUND: "Usuário não encontrado",
+  COMPANY_NOT_FOUND: "Empresa não encontrada",
+  COMPANY_NAME_ALREADY_REGISTERED: "Nome de empresa já cadastrado",
   UNAUTHORIZED: "Não autorizado",
   ALREADY_FINISHED:
     "Expediente já finalizado, não é possível iniciar novamente.",
@@ -15,7 +17,7 @@ export const SALT_ROUNDS = 10 as const;
 
 export const TIMEZONE = "America/Sao_Paulo" as const;
 
-export const RecordTypes = {
+export const RECORD_TYPES = {
   START: "start",
   END: "end",
 } as const;
@@ -46,4 +48,10 @@ export const TOKEN_EXPIRATION = {
 
 export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
+} as const;
+
+export const ROLES_NAMES = {
+  EMPLOYEE: "EMPLOYEE",
+  MANAGER: "MANAGER",
+  ADMIN: "ADMIN",
 } as const;
