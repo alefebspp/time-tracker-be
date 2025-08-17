@@ -1,23 +1,48 @@
 import { CreateUserParams } from "../types";
-import UserRepository from "./user.repository";
 import prisma from "@/config/prisma";
+import User from "../user.model";
 
-export default function makePrismaUserRepository(): UserRepository {
-  return {
-    async create({ password, ...data }: CreateUserParams) {
-      await prisma.user.create({ data: { ...data, passwordHash: password } });
+export async function create({ password, ...data }: CreateUserParams) {
+  const user = await prisma.user.create({
+    data: { ...data, passwordHash: password },
+    include: {
+      roles: {
+        include: {
+          role: true,
+        },
+      },
     },
+  });
 
-    async findById(id: string) {
-      const user = await prisma.user.findUnique({ where: { id } });
+  return user;
+}
 
-      return user;
+export async function findById(id: string) {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    include: {
+      roles: {
+        include: {
+          role: true,
+        },
+      },
     },
+  });
 
-    async findByEmail(email: string) {
-      const user = await prisma.user.findFirst({ where: { email } });
+  return user;
+}
 
-      return user;
+export async function findByEmail(email: string) {
+  const user = await prisma.user.findFirst({
+    where: { email },
+    include: {
+      roles: {
+        include: {
+          role: true,
+        },
+      },
     },
-  };
+  });
+
+  return user;
 }

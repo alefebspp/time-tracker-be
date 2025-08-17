@@ -8,7 +8,8 @@
     "test": "vitest run",
     "build": "tsup src --out-dir build --format esm --splitting false",
     "start": "node build/server.js",
-    "start:dev": "tsx watch src/server.ts"
+    "start:dev": "tsx watch src/server.ts",
+    "prisma:seed": "npx prisma db seed"
   },
   "keywords": [],
   "author": "",
@@ -30,6 +31,9 @@
     "tsup": "^8.5.0",
     "tsx": "^4.20.3",
     "zod": "^3.25.74"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",

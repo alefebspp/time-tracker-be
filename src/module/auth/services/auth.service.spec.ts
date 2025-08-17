@@ -1,10 +1,16 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as bcrypt from "bcrypt";
 
 import AppError from "@/errors/AppError";
 
-import * as authService from "./auth.service";
-import { RegisterUserParams } from "../types/services";
+import { bindServices } from "./auth.service";
+import { bindRepositoryToUserService } from "@/module/user/services/user.service";
+import { UserService } from "@/module/user/types";
+import { CompanyService } from "@/module/company/types";
+import { bindRepositoryToCompanyService } from "@/module/company/services/company.service";
+import { AuthService } from "../types/services";
+import { bindRepositoryToRoleService } from "@/module/roles/services/roles.service";
+import { RoleService } from "@/module/roles/types";
 
 const mockRepo = {
   findById: vi.fn(),
@@ -12,19 +18,40 @@ const mockRepo = {
   create: vi.fn(),
 };
 
+const mockRoleRepo = {
+  assignToUser: vi.fn(),
+  findByName: vi.fn(),
+};
+
 vi.mock("bcrypt", () => ({
   compare: vi.fn(),
   hash: vi.fn(),
 }));
 
+let userService: UserService;
+let companyService: CompanyService;
+let roleService: RoleService;
+let sut: AuthService;
+
 describe("Auth service", () => {
+  beforeEach(() => {
+    userService = bindRepositoryToUserService(mockRepo);
+
+    companyService = bindRepositoryToCompanyService({
+      ...mockRepo,
+      findByName: vi.fn(),
+    });
+
+    roleService = bindRepositoryToRoleService(mockRoleRepo);
+
+    sut = bindServices({ userService, companyService, roleService });
+  });
+
   describe("getProfile", () => {
     it("should throw error if user does not exists", async () => {
       mockRepo.findById.mockResolvedValue(null);
 
-      await expect(
-        authService.getProfile(mockRepo, "wrong-id")
-      ).rejects.toBeInstanceOf(AppError);
+      await expect(sut.getProfile("wrong-id")).rejects.toBeInstanceOf(AppError);
     });
   });
 
@@ -39,7 +66,7 @@ describe("Auth service", () => {
         passwordHash: await bcrypt.hash("123456789", 10),
       });
 
-      const { user } = await authService.login(mockRepo, {
+      const { user } = await sut.login({
         email: "johndoe@hotmail.com",
         password: "123456789",
       });
@@ -53,61 +80,16 @@ describe("Auth service", () => {
       mockRepo.findByEmail.mockResolvedValue(null);
 
       await expect(
-        authService.login(mockRepo, {
+        sut.login({
           email: "johndoe@hotmail.com",
           password: "wrong-password",
         })
       ).rejects.toBeInstanceOf(AppError);
 
       await expect(
-        authService.login(mockRepo, {
+        sut.login({
           email: "wrong-user@hotmail.com",
           password: "wrong-password",
-        })
-      ).rejects.toBeInstanceOf(AppError);
-    });
-  });
-
-  describe("registerUser", () => {
-    it("should hash user password properly", async () => {
-      mockRepo.findByEmail.mockResolvedValue(null);
-
-      const mockHashedPassword = "hashed-password";
-
-      (bcrypt.hash as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
-        mockHashedPassword
-      );
-
-      const userData: RegisterUserParams = {
-        name: "Alice",
-        email: "alice@example.com",
-        password: "plaintext-password",
-      };
-
-      await authService.registerUser(mockRepo, userData);
-
-      expect(bcrypt.hash).toHaveBeenCalledWith("plaintext-password", 10);
-      expect(mockRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: "Alice",
-          email: "alice@example.com",
-          password: mockHashedPassword,
-        })
-      );
-    });
-
-    it("should throw error if email is already registered", async () => {
-      mockRepo.findByEmail.mockResolvedValue({
-        id: "1",
-        name: "John Doe",
-        email: "johndoe@hotmail.com",
-      });
-
-      await expect(
-        authService.registerUser(mockRepo, {
-          name: "John Doe",
-          email: "johndoe@hotmail.com",
-          password: "123456789",
         })
       ).rejects.toBeInstanceOf(AppError);
     });

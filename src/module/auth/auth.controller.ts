@@ -1,9 +1,8 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { addHours, sub } from "date-fns";
 
-import UserRepository from "@/module/user/repository/user.repository";
+import User from "@/module/user/user.model";
 import { registerSchema, loginSchema } from "./auth.schemas";
-import * as authService from "./services/auth.service";
 import {
   COOKIE,
   HTTP_STATUS,
@@ -11,6 +10,18 @@ import {
   TOKEN_EXPIRATION,
   ENV,
 } from "@/constants";
+import { AuthService } from "./types/services";
+
+function normalizeUser(user: User) {
+  const { passwordHash, ...safeData } = user;
+
+  const roles = user.roles.map(({ role }) => role.name);
+
+  return {
+    ...safeData,
+    roles,
+  };
+}
 
 export async function logout(request: FastifyRequest, reply: FastifyReply) {
   return reply
@@ -28,22 +39,21 @@ export async function logout(request: FastifyRequest, reply: FastifyReply) {
 export async function getProfile(
   request: FastifyRequest,
   reply: FastifyReply,
-  userRepository: UserRepository
+  authService: AuthService
 ) {
   const userId = request.user.sign.sub;
-  const { user } = await authService.getProfile(userRepository, userId);
-  const { passwordHash: _, ...safeUser } = user;
+  const { user } = await authService.getProfile(userId);
 
-  return reply.status(HTTP_STATUS.OK).send({ user: safeUser });
+  return reply.status(HTTP_STATUS.OK).send({ user: normalizeUser(user) });
 }
 
 export async function register(
   request: FastifyRequest,
   reply: FastifyReply,
-  userRepository: UserRepository
+  authService: AuthService
 ) {
   const body = registerSchema.parse(request.body);
-  await authService.registerUser(userRepository, body);
+  await authService.registerUser(body);
 
   return reply.status(HTTP_STATUS.OK).send({ message: MESSAGES.USER_CREATED });
 }
@@ -51,11 +61,10 @@ export async function register(
 export async function login(
   request: FastifyRequest,
   reply: FastifyReply,
-  userRepository: UserRepository
+  authService: AuthService
 ) {
   const body = loginSchema.parse(request.body);
-  const { user } = await authService.login(userRepository, body);
-  const { passwordHash, ...normalizedUser } = user;
+  const { user } = await authService.login(body);
 
   const token = await reply.jwtSign({ sign: { sub: user.id } });
   const refreshToken = await reply.jwtSign({
@@ -71,5 +80,5 @@ export async function login(
       expires: addHours(new Date(), 1),
     })
     .status(HTTP_STATUS.OK)
-    .send({ token, user: normalizedUser });
+    .send({ token, user: normalizeUser(user) });
 }
